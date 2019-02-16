@@ -61,9 +61,23 @@ class Place
         { :$project => { _id: 1 } }
       ]).map { |document| document[:_id].to_s }
     end
+
+    def create_indexes
+      collection.indexes.create_one :"geometry.geolocation" => "2dsphere"
+    end
+
+    def remove_indexes
+      collection.indexes.drop_one("geometry.geolocation_2dsphere")
+    end
+
+    def near(point, max_meters = 0)
+      collection.find :"geometry.geolocation" => { :$near => { :$geometry => point.to_hash, :$maxDistance => max_meters } }
+    end
   end
 
   def initialize(options)
+    options[:address_components] ||= []
+
     self.id = options[:_id].to_s
     self.formatted_address = options[:formatted_address]
     self.location = Point.new(options[:geometry][:geolocation])
@@ -72,5 +86,9 @@ class Place
 
   def destroy
     self.class.collection.find(_id: BSON::ObjectId.from_string(@id)).delete_one
+  end
+
+  def near(max_meters = 0)
+    self.class.near(location, max_meters).map { |document| self.class.new(document) }
   end
 end

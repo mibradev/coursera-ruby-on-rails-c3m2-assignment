@@ -33,6 +33,34 @@ class Place
     def to_places(documents)
       documents.map { |document| new(document) }
     end
+
+    def get_address_components(sort = {}, offset = 0, limit = 0)
+      q = collection.aggregate([
+        { :$project => { :address_components => 1, :formatted_address => 1, :"geometry.geolocation" => 1 } },
+        { :$unwind => "$address_components" }
+      ])
+
+      q.pipeline << { :$sort => sort } unless sort.empty?
+      q.pipeline << { :$skip => offset } unless offset.zero?
+      q.pipeline << { :$limit => limit } unless limit.zero?
+      q
+    end
+
+    def get_country_names
+      collection.aggregate([
+        { :$project => { :"address_components.long_name" => 1, :"address_components.types" => 1 } },
+        { :$unwind => "$address_components" },
+        { :$match => { :"address_components.types" => "country" } },
+        { :$group => { _id: "$address_components.long_name" } }
+      ]).map { |document| document[:_id] }
+    end
+
+    def find_ids_by_country_code(country_code)
+      collection.aggregate([
+        { :$match => { :"address_components.short_name" => country_code } },
+        { :$project => { _id: 1 } }
+      ]).map { |document| document[:_id].to_s }
+    end
   end
 
   def initialize(options)

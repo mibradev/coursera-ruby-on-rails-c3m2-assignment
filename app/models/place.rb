@@ -1,4 +1,6 @@
 class Place
+  include ActiveModel::Model
+
   attr_accessor :id
   attr_accessor :formatted_address
   attr_accessor :location
@@ -82,6 +84,10 @@ class Place
     self.formatted_address = options[:formatted_address]
     self.location = Point.new(options[:geometry][:geolocation])
     self.address_components = options[:address_components].map { |a| AddressComponent.new(a) }
+  end
+
+  def persisted?
+    self.id.present?
   end
 
   def destroy

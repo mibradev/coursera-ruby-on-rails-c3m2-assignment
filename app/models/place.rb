@@ -91,4 +91,8 @@ class Place
   def near(max_meters = 0)
     self.class.near(location, max_meters).map { |document| self.class.new(document) }
   end
+
+  def photos(offset = 0, limit = 0)
+    Photo.find_photos_for_place(id).skip(offset).limit(limit).map { |document| Photo.new(document) }
+  end
 end

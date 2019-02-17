@@ -18,6 +18,10 @@ class Photo
       document = mongo_client.database.fs.find(_id: BSON::ObjectId.from_string(id)).first
       new(document) if document
     end
+
+    def find_photos_for_place(place_id)
+      mongo_client.database.fs.find(:"metadata.place" => BSON::ObjectId.from_string(place_id))
+    end
   end
 
   def initialize(options = {})
@@ -25,6 +29,7 @@ class Photo
 
     if options[:metadata]
       self.location = Point.new(options[:metadata][:location])
+      self.place = options[:metadata][:place]
     end
   end
 
@@ -33,12 +38,25 @@ class Photo
     file.chunks.inject("") { |buffer, chunk| buffer << chunk.data.data } if file
   end
 
+  def place
+    Place.find(@place) if @place
+  end
+
+  def place=(place)
+    @place = place.is_a?(Place) ? BSON::ObjectId.from_string(place.id) : place
+  end
+
   def persisted?
     self.id.present?
   end
 
+  def find_nearest_place_id(max_meters)
+    Place.near(location, max_meters).limit(1).projection(_id: 1).first[:_id]
+  end
+
   def save
     description = { content_type: "image/jpeg", metadata: {} }
+    description[:metadata][:place] = @place if @place
 
     unless persisted?
       if @contents
